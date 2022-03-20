@@ -27,7 +27,7 @@ void calculate(const double capacitance, const double resistance_2) {
 //        }
     }
     for (int i = 0; i < 7; ++i) {
-        printf("frequency [%6.3lf Hz]: %9.3lf ohm\n", frequencies[i], resistance_values[i]);
+        printf("frequency [%6.3lf(Hz)]: %9.3lf(Ohm)\n", frequencies[i], resistance_values[i]);
     }
 }
 
