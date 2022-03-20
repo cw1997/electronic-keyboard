@@ -20,11 +20,11 @@ void calculate(const double capacitance, const double resistance_2) {
     for (int frequency_index = 6; frequency_index >= 0; --frequency_index) {
         const double frequency = frequencies[frequency_index];
         resistance_values[frequency_index] = (ln2 / frequency) / capacitance - 2 * resistance_2;
-        if (frequency_index < 6) {
-            for (int j = frequency_index + 1; j < 7; ++j) {
-                resistance_values[frequency_index] = resistance_values[frequency_index] - resistance_values[j];
-            }
-        }
+//        if (frequency_index < 6) {
+//            for (int j = frequency_index + 1; j < 7; ++j) {
+//                resistance_values[frequency_index] = resistance_values[frequency_index] - resistance_values[j];
+//            }
+//        }
     }
     for (int i = 0; i < 7; ++i) {
         printf("frequency [%6.3lf Hz]: %9.3lf ohm\n", frequencies[i], resistance_values[i]);
