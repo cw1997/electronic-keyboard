@@ -1,0 +1,6 @@
+{
+    "DESIGN_NAME": "electronic_keyboard",
+    "VERILOG_FILES": ["dir::../../rtl/freq_gen.sv", "dir::../../rtl/debounce.sv", "dir::../../rtl/poly_synth.sv", "dir::../../rtl/electronic_keyboard.sv"],
+    "CLOCK_PERIOD": 20,
+    "CLOCK_PORT": "clk"
+}
