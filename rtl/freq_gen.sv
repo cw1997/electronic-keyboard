@@ -15,8 +15,8 @@
 // ============================================================================
 
 module freq_gen #(
-    parameter CLK_FREQ    = 50_000_000,  // System clock frequency (Hz)
-    parameter NOTE_FREQ_HZ = 440          // Desired note frequency (Hz)
+    parameter CLK_FREQ     = 50_000_000,  // System clock frequency (Hz)
+    parameter NOTE_FREQ_HZ = 440           // Desired note frequency (Hz)
 ) (
     input  logic clk,        // Master clock input
     input  logic rst_n,      // Asynchronous reset, active low

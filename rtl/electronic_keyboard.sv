@@ -4,19 +4,19 @@
 // Description: 88-key fully polyphonic electronic keyboard.
 //   - Debounces all 88 key inputs
 //   - Feeds debounced keys to the polyphonic synthesizer
-//   - Outputs 8-bit digital audio (square-wave sum)
+//   - Outputs 1-bit digital audio (OR-mixed square waves, for passive buzzer)
 //
 // Architecture:
-//   keys[87:0] → 88×debounce → poly_synth → audio_out[7:0]
+//   keys[87:0] → 88×debounce → poly_synth → audio_out
 //
 // Frequency formula:
 //   freq[k] = round(440 * 2^((k - 48) / 12)),  k in [0, 87]
 //
 // Ports:
-//   clk          - master clock input
-//   rst_n        - asynchronous reset (active low)
-//   keys[87:0]   - 88 key inputs (async, 1 = pressed)
-//   audio_out[7:0] - 8-bit audio output (square-wave sum, range 0~88)
+//   clk        - master clock input
+//   rst_n      - asynchronous reset (active low)
+//   keys[87:0] - 88 key inputs (async, 1 = pressed)
+//   audio_out  - 1-bit audio output to passive buzzer (OR of all square waves)
 //
 // ASIC flow (OpenLane):
 //   - Single clock domain, no gated clocks
@@ -31,7 +31,7 @@ module electronic_keyboard #(
     input  logic        clk,         // Master clock input
     input  logic        rst_n,       // Asynchronous reset, active low
     input  logic [87:0] keys,        // 88 key inputs (async, 1 = pressed)
-    output logic [7:0]  audio_out    // 8-bit audio output to speaker (square-wave sum)
+    output logic        audio_out    // 1-bit audio output to passive buzzer
 );
 
     // Debounced key outputs
@@ -54,7 +54,7 @@ module electronic_keyboard #(
     endgenerate
 
     // ========================================================================
-    // Polyphonic synthesizer — instantiates 88 frequency generators and sums
+    // Polyphonic synthesizer — instantiates 88 frequency generators and ORs
     // ========================================================================
     poly_synth #(
         .CLK_FREQ(CLK_FREQ)

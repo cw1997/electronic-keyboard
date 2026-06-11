@@ -8,9 +8,9 @@
 //   reaches the threshold, the counter resets.
 //
 // Ports:
-//   clk    - master clock input
-//   rst_n  - asynchronous reset (active low)
-//   key_in - raw key input (async, 1 = pressed)
+//   clk     - master clock input
+//   rst_n   - asynchronous reset (active low)
+//   key_in  - raw key input (async, 1 = pressed)
 //   key_out - debounced key output (1 = pressed)
 // ============================================================================
 
@@ -25,8 +25,8 @@ module debounce #(
 );
 
     // Number of clock cycles required for debounce
-    localparam int CNT_MAX = CLK_FREQ / 1000 * DEBOUNCE_MS;
-    localparam int CNT_BITS = $clog2(CNT_MAX);
+    localparam int          CNT_MAX   = CLK_FREQ / 1000 * DEBOUNCE_MS;
+    localparam int          CNT_BITS  = $clog2(CNT_MAX);
     localparam [CNT_BITS-1:0] CNT_THRESH = CNT_MAX[CNT_BITS-1:0] - 1'b1;
 
     logic [CNT_BITS-1:0] cnt;  // Debounce counter

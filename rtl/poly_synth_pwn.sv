@@ -1,10 +1,10 @@
 // ============================================================================
-// Polyphonic Synthesizer — OR Mixing for Passive Buzzer
+// Polyphonic Synthesizer — PWM Summing Version
 //
 // Description: 88-key fully polyphonic square-wave synthesizer.
 //   Computes the integer frequency (Hz) for each of the 88 keys at
-//   elaboration time, instantiates a freq_gen per key, and ORs all
-//   square-wave outputs into a 1-bit audio signal for a passive buzzer.
+//   elaboration time, instantiates a freq_gen per key, and sums all
+//   square-wave outputs into an 8-bit audio signal (for PWM DAC).
 //
 // Frequency formula:
 //   freq[k] = round(440 * 2^((k - 48) / 12)),  k in [0, 87]
@@ -15,19 +15,19 @@
 //   without external scripts or pre-generated arrays.
 //
 // Ports:
-//   clk       - master clock input
-//   rst_n     - asynchronous reset (active low)
-//   keys[87:0] - 88 debounced key inputs (1 = pressed)
-//   audio_out - 1-bit audio output (OR of all square waves, for passive buzzer)
+//   clk         - master clock input
+//   rst_n       - asynchronous reset (active low)
+//   keys[87:0]  - 88 debounced key inputs (1 = pressed)
+//   audio_out[7:0] - 8-bit audio output (square-wave sum, range 0~88)
 // ============================================================================
 
-module poly_synth #(
+module poly_synth_pwn #(
     parameter CLK_FREQ = 50_000_000  // System clock frequency (Hz)
 ) (
     input  logic        clk,         // Master clock input
     input  logic        rst_n,       // Asynchronous reset, active low
     input  logic [87:0] keys,        // Debounced key inputs (1 = pressed)
-    output logic        audio_out    // 1-bit audio output to passive buzzer
+    output logic [7:0]  audio_out    // 8-bit audio output (square-wave sum)
 );
 
     // 12-TET semitone ratio lookup table (Q16.16 fixed-point)
@@ -119,7 +119,12 @@ module poly_synth #(
         end
     endgenerate
 
-    // OR all square-wave outputs into 1-bit audio (for passive buzzer)
-    assign audio_out = |square_wires;
+    // Sum all square-wave outputs into 8-bit audio (for PWM DAC)
+    always_comb begin
+        audio_out = '0;
+        for (int i = 0; i < 88; i++) begin
+            audio_out = audio_out + square_wires[i];
+        end
+    end
 
 endmodule
