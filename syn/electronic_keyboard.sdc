@@ -19,7 +19,7 @@ set_input_delay -clock clk -max 4.000 [get_ports keys]
 set_input_delay -clock clk -min 1.000 [get_ports keys]
 
 # Output delay
-# audio_out connects to external DAC or PWM circuit
+# audio_out connects to passive buzzer
 set_output_delay -clock clk -max 4.000 [get_ports audio_out]
 set_output_delay -clock clk -min 1.000 [get_ports audio_out]
 
