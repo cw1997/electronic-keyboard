@@ -25,6 +25,8 @@
 //   - SDC constraints file required for synthesis
 // ============================================================================
 
+`timescale 1ns / 1ps
+
 module electronic_keyboard #(
     parameter CLK_FREQ = 50_000_000  // System clock frequency (Hz)
 ) (

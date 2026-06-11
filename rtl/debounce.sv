@@ -14,6 +14,8 @@
 //   key_out - debounced key output (1 = pressed)
 // ============================================================================
 
+`timescale 1ns / 1ps
+
 module debounce #(
     parameter CLK_FREQ    = 50_000_000,  // System clock frequency (Hz)
     parameter DEBOUNCE_MS = 10            // Debounce time (ms)

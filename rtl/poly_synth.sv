@@ -16,19 +16,21 @@
 //   audio_out - 1-bit audio output (OR of all square waves, for passive buzzer)
 // ============================================================================
 
+`timescale 1ns / 1ps
+
 module poly_synth #(
     parameter CLK_FREQ = 50000000  // System clock frequency (Hz)
 ) (
-    input  wire        clk,         // Master clock input
-    input  wire        rst_n,       // Asynchronous reset, active low
-    input  wire [87:0] keys,        // Debounced key inputs (1 = pressed)
-    output wire        audio_out    // 1-bit audio output to passive buzzer
+    input  logic        clk,         // Master clock input
+    input  logic        rst_n,       // Asynchronous reset, active low
+    input  logic [87:0] keys,        // Debounced key inputs (1 = pressed)
+    output logic        audio_out    // 1-bit audio output to passive buzzer
 );
 
     // ============================================================
     // 1. Square wave outputs
     // ============================================================
-    wire [87:0] square_wires;
+    logic [87:0] square_wires;
 
     genvar i;
     generate

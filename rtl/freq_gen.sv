@@ -15,6 +15,8 @@
 //   square_out - square-wave tone output
 // ============================================================================
 
+`timescale 1ns / 1ps
+
 module freq_gen #(
     parameter CLK_FREQ     = 50_000_000,  // System clock frequency (Hz)
     parameter NOTE_FREQ_HZ = 440           // Desired note frequency (Hz)
