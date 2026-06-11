@@ -16,7 +16,6 @@ results/
 reports/
 logs/
 *.v
-*.json
 
 # Synthesis and P&R intermediates
 *.edf
