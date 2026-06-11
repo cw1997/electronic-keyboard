@@ -2,17 +2,12 @@
 // Polyphonic Synthesizer — OR Mixing for Passive Buzzer
 //
 // Description: 88-key fully polyphonic square-wave synthesizer.
-//   Computes the integer frequency (Hz) for each of the 88 keys at
-//   elaboration time, instantiates a freq_gen per key, and ORs all
-//   square-wave outputs into a 1-bit audio signal for a passive buzzer.
+//   Computes note frequencies at elaboration time, instantiates a freq_gen
+//   per key, and ORs all square-wave outputs into
+//   a 1-bit audio signal for a passive buzzer.
 //
 // Frequency formula:
 //   freq[k] = round(440 * 2^((k - 48) / 12)),  k in [0, 87]
-//
-// Frequency calculation:
-//   Uses Q16.16 fixed-point semitone ratio lookup table.  All 88 note
-//   frequencies are computed at elaboration time by calc_note_freq_hz(),
-//   without external scripts or pre-generated arrays.
 //
 // Ports:
 //   clk       - master clock input
@@ -22,104 +17,136 @@
 // ============================================================================
 
 module poly_synth #(
-    parameter CLK_FREQ = 50_000_000  // System clock frequency (Hz)
+    parameter CLK_FREQ = 50000000  // System clock frequency (Hz)
 ) (
-    input  logic        clk,         // Master clock input
-    input  logic        rst_n,       // Asynchronous reset, active low
-    input  logic [87:0] keys,        // Debounced key inputs (1 = pressed)
-    output logic        audio_out    // 1-bit audio output to passive buzzer
+    input  wire        clk,         // Master clock input
+    input  wire        rst_n,       // Asynchronous reset, active low
+    input  wire [87:0] keys,        // Debounced key inputs (1 = pressed)
+    output wire        audio_out    // 1-bit audio output to passive buzzer
 );
 
-    // 12-TET semitone ratio lookup table (Q16.16 fixed-point)
-    //   ratio[s] = round(2^(s/12) * 2^16),  s in [0, 11]
-    localparam int SEMITONE_RATIO [12] = '{
-        32'd65536,   // 2^( 0/12) = 1.000000
-        32'd69420,   // 2^( 1/12) ~ 1.059463
-        32'd73534,   // 2^( 2/12) ~ 1.122462
-        32'd77909,   // 2^( 3/12) ~ 1.189207
-        32'd82571,   // 2^( 4/12) ~ 1.259921
-        32'd87453,   // 2^( 5/12) ~ 1.334840
-        32'd92635,   // 2^( 6/12) ~ 1.414214
-        32'd98142,   // 2^( 7/12) ~ 1.498307
-        32'd103963,  // 2^( 8/12) ~ 1.587401
-        32'd110148,  // 2^( 9/12) ~ 1.681793
-        32'd116669,  // 2^(10/12) ~ 1.781797
-        32'd123592   // 2^(11/12) ~ 1.887749
-    };
+    // ============================================================
+    // 1. Square wave outputs
+    // ============================================================
+    wire [87:0] square_wires;
 
-    // Calculates the integer note frequency (Hz) for a given key index.
-    // Algorithm:
-    //   1. A4 base in Q16.16: base = round(440 * 2^16)
-    //   2. Apply semitone:  result = result * ratio[semitone] / 2^16
-    //   3. Shift by octave: result = result * 2^octave
-    //   4. Round Q16.16 to integer: result = (result + 2^15) / 2^16
-    function automatic int calc_note_freq_hz(int key_idx);
-        int offset   = key_idx - 48;
-        int octave   = offset / 12;
-        int semitone = offset % 12;
-        bit signed [63:0] result;
-
-        if (semitone < 0) begin
-            semitone += 12;
-            octave   -= 1;
-        end
-
-        // base = round(440 * 2^16) = 28835840
-        result = 64'd28835840;
-
-        // result = round(result * ratio[semitone] / 65536)
-        result = (result * 64'(SEMITONE_RATIO[semitone]) + 64'(32768)) / 64'(65536);
-
-        // result = result * 2^octave
-        if (octave >= 0) begin
-            result = result << octave;
-        end else begin
-            result = result >> (-octave);
-        end
-
-        // Round Q16.16 to nearest integer
-        result = (result + 64'(32768)) / 64'(65536);
-
-        return int'(result);
-    endfunction
-
-    // Note frequency lookup table (integer Hz, generated at elaboration time)
-    localparam int NOTE_FREQ_HZ [88] = '{
-        calc_note_freq_hz(0),  calc_note_freq_hz(1),  calc_note_freq_hz(2),  calc_note_freq_hz(3),  calc_note_freq_hz(4),  calc_note_freq_hz(5),
-        calc_note_freq_hz(6),  calc_note_freq_hz(7),  calc_note_freq_hz(8),  calc_note_freq_hz(9),  calc_note_freq_hz(10), calc_note_freq_hz(11),
-        calc_note_freq_hz(12), calc_note_freq_hz(13), calc_note_freq_hz(14), calc_note_freq_hz(15), calc_note_freq_hz(16), calc_note_freq_hz(17),
-        calc_note_freq_hz(18), calc_note_freq_hz(19), calc_note_freq_hz(20), calc_note_freq_hz(21), calc_note_freq_hz(22), calc_note_freq_hz(23),
-        calc_note_freq_hz(24), calc_note_freq_hz(25), calc_note_freq_hz(26), calc_note_freq_hz(27), calc_note_freq_hz(28), calc_note_freq_hz(29),
-        calc_note_freq_hz(30), calc_note_freq_hz(31), calc_note_freq_hz(32), calc_note_freq_hz(33), calc_note_freq_hz(34), calc_note_freq_hz(35),
-        calc_note_freq_hz(36), calc_note_freq_hz(37), calc_note_freq_hz(38), calc_note_freq_hz(39), calc_note_freq_hz(40), calc_note_freq_hz(41),
-        calc_note_freq_hz(42), calc_note_freq_hz(43), calc_note_freq_hz(44), calc_note_freq_hz(45), calc_note_freq_hz(46), calc_note_freq_hz(47),
-        calc_note_freq_hz(48), calc_note_freq_hz(49), calc_note_freq_hz(50), calc_note_freq_hz(51), calc_note_freq_hz(52), calc_note_freq_hz(53),
-        calc_note_freq_hz(54), calc_note_freq_hz(55), calc_note_freq_hz(56), calc_note_freq_hz(57), calc_note_freq_hz(58), calc_note_freq_hz(59),
-        calc_note_freq_hz(60), calc_note_freq_hz(61), calc_note_freq_hz(62), calc_note_freq_hz(63), calc_note_freq_hz(64), calc_note_freq_hz(65),
-        calc_note_freq_hz(66), calc_note_freq_hz(67), calc_note_freq_hz(68), calc_note_freq_hz(69), calc_note_freq_hz(70), calc_note_freq_hz(71),
-        calc_note_freq_hz(72), calc_note_freq_hz(73), calc_note_freq_hz(74), calc_note_freq_hz(75), calc_note_freq_hz(76), calc_note_freq_hz(77),
-        calc_note_freq_hz(78), calc_note_freq_hz(79), calc_note_freq_hz(80), calc_note_freq_hz(81), calc_note_freq_hz(82), calc_note_freq_hz(83),
-        calc_note_freq_hz(84), calc_note_freq_hz(85), calc_note_freq_hz(86), calc_note_freq_hz(87)
-    };
-
-    // Square wave outputs from each freq_gen
-    logic [87:0] square_wires;  // 88 square wave signals from freq_gen instances
-
+    genvar i;
     generate
-        for (genvar i = 0; i < 88; i++) begin : gen_freq
+        for (i = 0; i < 88; i = i + 1) begin : GEN_FREQ
+
+            // ========================================================
+            // NOTE FREQUENCY TABLE (fully static, Yosys-safe)
+            // ========================================================
+            localparam integer NOTE_FREQ_HZ =
+                (i == 0)  ? 131 :
+                (i == 1)  ? 139 :
+                (i == 2)  ? 147 :
+                (i == 3)  ? 156 :
+                (i == 4)  ? 165 :
+                (i == 5)  ? 175 :
+                (i == 6)  ? 185 :
+                (i == 7)  ? 196 :
+                (i == 8)  ? 208 :
+                (i == 9)  ? 220 :
+                (i == 10) ? 233 :
+                (i == 11) ? 247 :
+                (i == 12) ? 262 :
+                (i == 13) ? 277 :
+                (i == 14) ? 294 :
+                (i == 15) ? 311 :
+                (i == 16) ? 330 :
+                (i == 17) ? 349 :
+                (i == 18) ? 370 :
+                (i == 19) ? 392 :
+                (i == 20) ? 415 :
+                (i == 21) ? 440 :
+                (i == 22) ? 466 :
+                (i == 23) ? 494 :
+                (i == 24) ? 523 :
+                (i == 25) ? 554 :
+                (i == 26) ? 587 :
+                (i == 27) ? 622 :
+                (i == 28) ? 659 :
+                (i == 29) ? 698 :
+                (i == 30) ? 740 :
+                (i == 31) ? 784 :
+                (i == 32) ? 831 :
+                (i == 33) ? 880 :
+                (i == 34) ? 932 :
+                (i == 35) ? 988 :
+                (i == 36) ? 1047 :
+                (i == 37) ? 1109 :
+                (i == 38) ? 1175 :
+                (i == 39) ? 1245 :
+                (i == 40) ? 1319 :
+                (i == 41) ? 1397 :
+                (i == 42) ? 1480 :
+                (i == 43) ? 1568 :
+                (i == 44) ? 1661 :
+                (i == 45) ? 1760 :
+                (i == 46) ? 1865 :
+                (i == 47) ? 1976 :
+                (i == 48) ? 2093 :
+                (i == 49) ? 2217 :
+                (i == 50) ? 2349 :
+                (i == 51) ? 2489 :
+                (i == 52) ? 2637 :
+                (i == 53) ? 2794 :
+                (i == 54) ? 2960 :
+                (i == 55) ? 3136 :
+                (i == 56) ? 3322 :
+                (i == 57) ? 3520 :
+                (i == 58) ? 3729 :
+                (i == 59) ? 3951 :
+                (i == 60) ? 4186 :
+                (i == 61) ? 4435 :
+                (i == 62) ? 4699 :
+                (i == 63) ? 4978 :
+                (i == 64) ? 5274 :
+                (i == 65) ? 5588 :
+                (i == 66) ? 5920 :
+                (i == 67) ? 6272 :
+                (i == 68) ? 6645 :
+                (i == 69) ? 7040 :
+                (i == 70) ? 7459 :
+                (i == 71) ? 7902 :
+                (i == 72) ? 8372 :
+                (i == 73) ? 8870 :
+                (i == 74) ? 9397 :
+                (i == 75) ? 9956 :
+                (i == 76) ? 10548 :
+                (i == 77) ? 11175 :
+                (i == 78) ? 11840 :
+                (i == 79) ? 12544 :
+                (i == 80) ? 13290 :
+                (i == 81) ? 14080 :
+                (i == 82) ? 14917 :
+                (i == 83) ? 15804 :
+                (i == 84) ? 16744 :
+                (i == 85) ? 17740 :
+                (i == 86) ? 18795 :
+                (i == 87) ? 19912 :
+                440;
+
+            // ========================================================
+            // freq_gen instance
+            // ========================================================
             freq_gen #(
                 .CLK_FREQ(CLK_FREQ),
-                .NOTE_FREQ_HZ(NOTE_FREQ_HZ[i])
+                .NOTE_FREQ_HZ(NOTE_FREQ_HZ)
             ) u_freq_gen (
                 .clk(clk),
                 .rst_n(rst_n),
                 .key_on(keys[i]),
                 .square_out(square_wires[i])
             );
+
         end
     endgenerate
 
-    // OR all square-wave outputs into 1-bit audio (for passive buzzer)
+    // ============================================================
+    // OR MIXING (passive buzzer output)
+    // ============================================================
     assign audio_out = |square_wires;
 
 endmodule
