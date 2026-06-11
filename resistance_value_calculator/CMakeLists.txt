@@ -4,3 +4,5 @@ project(resistance_value_calculator C)
 set(CMAKE_C_STANDARD 11)
 
 add_executable(resistance_value_calculator main.c)
+
+target_link_libraries(resistance_value_calculator m)
