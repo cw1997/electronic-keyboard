@@ -15,9 +15,16 @@
 #include <cstdio>
 #include <cmath>
 
+#ifndef SIM_CLK_FREQ
+#define SIM_CLK_FREQ 50000000ULL
+#endif
+
 vluint64_t main_time = 0;
-const vluint64_t CLK_PERIOD = 20;              // 50 MHz -> 20 ns
+const vluint64_t CLK_FREQ_HZ = SIM_CLK_FREQ;
+const vluint64_t CLK_PERIOD_NS = (CLK_FREQ_HZ > 0) ? (1'000'000'000ULL / CLK_FREQ_HZ) : 20ULL;
+const vluint64_t CLK_HALF_PERIOD_NS = (CLK_PERIOD_NS > 1) ? (CLK_PERIOD_NS / 2) : 1;
 const vluint64_t DEBOUNCE_SETTLE_NS = 11'000'000;  // Wait longer than the 10 ms debounce filter
+const int EDGE_TIMEOUT_CYCLES = static_cast<int>((CLK_FREQ_HZ >= 10) ? (CLK_FREQ_HZ / 10) : 1);  // 100 ms
 
 double sc_time_stamp() { return main_time; }
 
@@ -35,8 +42,8 @@ int main(int argc, char** argv) {
     auto eval = [&]() { dut->eval(); };
 
     auto tick = [&]() {
-        dut->clk = 0; eval(); trace->dump(main_time); main_time += CLK_PERIOD / 2;
-        dut->clk = 1; eval(); trace->dump(main_time); main_time += CLK_PERIOD / 2;
+        dut->clk = 0; eval(); trace->dump(main_time); main_time += CLK_HALF_PERIOD_NS;
+        dut->clk = 1; eval(); trace->dump(main_time); main_time += CLK_HALF_PERIOD_NS;
     };
 
     auto wait_ns = [&](vluint64_t ns) {
@@ -52,8 +59,8 @@ int main(int argc, char** argv) {
         wait_ns(DEBOUNCE_SETTLE_NS);
     };
 
-    auto wait_audio_level = [&](int expected_level, const char* desc, int timeout_cycles) -> bool {
-        for (int i = 0; i < timeout_cycles; i++) {
+    auto wait_audio_level = [&](int expected_level, const char* desc) -> bool {
+        for (int i = 0; i < EDGE_TIMEOUT_CYCLES; i++) {
             tick();
             if (dut->audio_out == expected_level) return true;
         }
@@ -64,12 +71,12 @@ int main(int argc, char** argv) {
     auto check_freq = [&](int key_idx, double expected_hz, const char* desc) {
         (void)key_idx;
 
-        if (!wait_audio_level(0, desc, 5'000'000)) { failed++; return; }
-        if (!wait_audio_level(1, desc, 5'000'000)) { failed++; return; }
+        if (!wait_audio_level(0, desc)) { failed++; return; }
+        if (!wait_audio_level(1, desc)) { failed++; return; }
         vluint64_t t1 = main_time;
 
-        if (!wait_audio_level(0, desc, 5'000'000)) { failed++; return; }
-        if (!wait_audio_level(1, desc, 5'000'000)) { failed++; return; }
+        if (!wait_audio_level(0, desc)) { failed++; return; }
+        if (!wait_audio_level(1, desc)) { failed++; return; }
         vluint64_t t2 = main_time;
 
         double period_ns = static_cast<double>(t2 - t1);
@@ -88,6 +95,7 @@ int main(int argc, char** argv) {
     };
 
     printf("=== Electronic Keyboard Verilator Test ===\n\n");
+    printf("CLK_FREQ = %llu Hz\n\n", static_cast<unsigned long long>(CLK_FREQ_HZ));
 
     // 1) Reset
     dut->rst_n = 0;
@@ -123,7 +131,7 @@ int main(int argc, char** argv) {
     printf("\n--- Chord test ---\n");
     dut->keys = (1ull << 39) | (1ull << 43) | (1ull << 46);
     wait_debounce_settle();
-    if (wait_audio_level(1, "chord press", 5'000'000)) {
+    if (wait_audio_level(1, "chord press")) {
         printf("  PASS: Chord output non-zero (audio_out=%d)\n", dut->audio_out);
         passed++;
     } else {
@@ -137,7 +145,7 @@ int main(int argc, char** argv) {
     dut->keys = ~0ull;
     for (int i = 64; i < 88; i++) dut->keys |= (1ull << i);
     wait_debounce_settle();
-    if (wait_audio_level(1, "all-keys press", 5'000'000)) {
+    if (wait_audio_level(1, "all-keys press")) {
         printf("  PASS: All-keys output non-zero\n");
         passed++;
     } else {

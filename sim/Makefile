@@ -4,6 +4,8 @@
 # Tool support:
 #   make sim            — compile and run with iverilog
 #   make sim-verilator  — compile and run with Verilator (C++ wrapper)
+#   make sim SIM_CLK_FREQ=50000000           — run at 50 MHz (hardware-like)
+#   make sim-verilator SIM_CLK_FREQ=50000000 — same for Verilator
 #   make lint           — run lint check with Verilator
 #   make sim-vcd        — run and open waveform
 #   make clean          — clean temporary files
@@ -16,6 +18,9 @@ GTKWAVE      = gtkwave
 
 TOP          = electronic_keyboard_tb
 TOP_MODULE   = electronic_keyboard
+SIM_CLK_FREQ ?= 1000000
+# Use a slower default simulation clock to reduce event count and runtime.
+# Override with SIM_CLK_FREQ=50000000 when hardware-equivalent clocking is needed.
 SRC_DIR      = ../rtl
 TB_DIR       = ../tb
 BUILD_DIR    = build
@@ -35,7 +40,8 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 sim: $(BUILD_DIR)
-	$(IVERILOG) -g2012 -Wall -o $(BUILD_DIR)/$(TOP).vvp $(RTL_FILES) $(TB_FILES)
+	$(IVERILOG) -g2012 -Wall -P$(TOP).CLK_FREQ=$(SIM_CLK_FREQ) \
+		-o $(BUILD_DIR)/$(TOP).vvp $(RTL_FILES) $(TB_FILES)
 	$(VVP) $(BUILD_DIR)/$(TOP).vvp
 
 sim-vcd: sim
@@ -47,6 +53,8 @@ sim-vcd: sim
 sim-verilator: $(BUILD_DIR)
 	$(VERILATOR) --cc --sv --exe --trace \
 		--top $(TOP_MODULE) \
+		-GCLK_FREQ=$(SIM_CLK_FREQ) \
+		-CFLAGS "-DSIM_CLK_FREQ=$(SIM_CLK_FREQ)" \
 		$(RTL_FILES) verilator_tb.cpp \
 		-o $(BUILD_DIR)/$(TOP_MODULE)_sim
 	make -C $(OBJ_DIR) -f V$(TOP_MODULE).mk

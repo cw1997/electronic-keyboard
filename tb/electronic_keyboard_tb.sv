@@ -20,10 +20,11 @@ module electronic_keyboard_tb;
     // ========================================================================
     // Parameters
     // ========================================================================
-    parameter CLK_FREQ = 50_000_000;  // 50 MHz
-    parameter CLK_NS   = 20;           // 20 ns period
+    parameter CLK_FREQ = 50_000_000;  // System clock for DUT/testbench (Hz)
     parameter DEBOUNCE_SETTLE_NS = 11_000_000;  // Wait longer than the 10 ms debounce filter
     parameter EDGE_TIMEOUT_CYCLES = CLK_FREQ / 10;  // 100 ms edge timeout for the lowest notes
+    localparam CLK_NS = 1_000_000_000 / CLK_FREQ;  // Clock period derived from CLK_FREQ
+    localparam CLK_HALF_NS = (CLK_NS > 1) ? (CLK_NS / 2) : 1;  // Guard against zero-delay clocks
 
     // ========================================================================
     // Signals
@@ -54,7 +55,7 @@ module electronic_keyboard_tb;
     // ========================================================================
     initial begin
         clk = 0;
-        forever #(CLK_NS / 2) clk = ~clk;
+        forever #(CLK_HALF_NS) clk = ~clk;
     end
 
     // Always record the previous value of audio_out

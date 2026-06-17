@@ -183,11 +183,15 @@ Audio output:  audio_out = square_wires[0] | ... | square_wires[87]
 ```bash
 cd sim
 
-# iverilog (recommended, runs SV testbench directly)
+# iverilog (recommended, runs SV testbench directly, default 1 MHz for faster sim)
 make sim
 
-# Verilator (C++ testbench wrapper)
+# Verilator (C++ testbench wrapper, same default simulation clock)
 make sim-verilator
+
+# Optional: use hardware-like 50 MHz clock
+make sim SIM_CLK_FREQ=50000000
+make sim-verilator SIM_CLK_FREQ=50000000
 
 # Lint only
 make lint
@@ -203,13 +207,13 @@ make clean
 
 ```
 === Electronic Keyboard Testbench Start ===
-CLK_FREQ = 50000000 Hz
+CLK_FREQ = 1000000 Hz
 
 PASS: Output should be zero after reset
-PASS: A4 (440 Hz) (key 48): 440.003 Hz (expected 440.000 Hz, error +0.00%)
-PASS: C4 (261.6 Hz) (key 39): 262.000 Hz (expected 261.626 Hz, error +0.14%)
-PASS: C8 (4186 Hz) (key 87): 4186.004 Hz (expected 4186.009 Hz, error -0.00%)
-PASS: A0 (27.5 Hz) (key 0): 27.497 Hz (expected 27.500 Hz, error -0.01%)
+PASS: A4 (440 Hz) (key 48): 440.141 Hz (expected 440.000 Hz, error +0.03%)
+PASS: C4 (261.6 Hz) (key 39): 261.575 Hz (expected 261.626 Hz, error -0.02%)
+PASS: C8 (4186 Hz) (key 87): 4166.667 Hz (expected 4186.009 Hz, error -0.46%)
+PASS: A0 (27.5 Hz) (key 0): 27.500 Hz (expected 27.500 Hz, error +0.00%)
 PASS: Chord output waveform changes correctly
 PASS: All keys pressed audio_out changes
 
