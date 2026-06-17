@@ -63,7 +63,7 @@ jobs:
         run: script -q -e -c "bash build.sh" /dev/null
 
       - name: Download simulation artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: sim-results
           path: sim-results/
@@ -91,7 +91,7 @@ jobs:
 
       - name: Upload to release
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: ${{ env.TAG_NAME }}
