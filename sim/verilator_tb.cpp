@@ -16,8 +16,8 @@
 #include <cmath>
 
 vluint64_t main_time = 0;
-const vluint64_t CLK_PERIOD = 20;    // 50 MHz -> 20 ns
-const vluint64_t SIM_NS = 5000000;    // 5 ms total simulation time
+const vluint64_t CLK_PERIOD = 20;              // 50 MHz -> 20 ns
+const vluint64_t DEBOUNCE_SETTLE_NS = 11'000'000;  // Wait longer than the 10 ms debounce filter
 
 double sc_time_stamp() { return main_time; }
 
@@ -32,9 +32,6 @@ int main(int argc, char** argv) {
 
     int passed = 0, failed = 0;
 
-    // ========================================================================
-    // Helper functions
-    // ========================================================================
     auto eval = [&]() { dut->eval(); };
 
     auto tick = [&]() {
@@ -51,19 +48,32 @@ int main(int argc, char** argv) {
         for (int i = 0; i < n; i++) tick();
     };
 
-    auto check_freq = [&](int key_idx, double expected_hz, const char* desc) {
-        // Wait for output to settle and measure time between two rising edges
-        int timeout = 100000;
-        while (dut->audio_out == 0 && timeout-- > 0) wait_cycles(1);
-        if (timeout <= 0) { printf("  FAIL: %s - no output\n", desc); failed++; return; }
+    auto wait_debounce_settle = [&]() {
+        wait_ns(DEBOUNCE_SETTLE_NS);
+    };
 
+    auto wait_audio_level = [&](int expected_level, const char* desc, int timeout_cycles) -> bool {
+        for (int i = 0; i < timeout_cycles; i++) {
+            tick();
+            if (dut->audio_out == expected_level) return true;
+        }
+        printf("  FAIL: Timeout waiting for audio_out=%d during %s\n", expected_level, desc);
+        return false;
+    };
+
+    auto check_freq = [&](int key_idx, double expected_hz, const char* desc) {
+        (void)key_idx;
+
+        if (!wait_audio_level(0, desc, 5'000'000)) { failed++; return; }
+        if (!wait_audio_level(1, desc, 5'000'000)) { failed++; return; }
         vluint64_t t1 = main_time;
-        while (dut->audio_out != 0) wait_cycles(1);
-        while (dut->audio_out == 0) wait_cycles(1);
+
+        if (!wait_audio_level(0, desc, 5'000'000)) { failed++; return; }
+        if (!wait_audio_level(1, desc, 5'000'000)) { failed++; return; }
         vluint64_t t2 = main_time;
 
-        double period_ns = double(t2 - t1);
-        double measured_hz = 1000.0 / period_ns;
+        double period_ns = static_cast<double>(t2 - t1);
+        double measured_hz = 1'000'000'000.0 / period_ns;
         double err_pct = (measured_hz - expected_hz) / expected_hz * 100.0;
 
         if (fabs(err_pct) < 5.0) {
@@ -77,9 +87,6 @@ int main(int argc, char** argv) {
         }
     };
 
-    // ========================================================================
-    // Test sequence
-    // ========================================================================
     printf("=== Electronic Keyboard Verilator Test ===\n\n");
 
     // 1) Reset
@@ -98,45 +105,46 @@ int main(int argc, char** argv) {
     // 2) Single key A4 (key 48, 440 Hz)
     printf("\n--- Single key test ---\n");
     dut->keys = 0;
-    wait_ns(200);
+    wait_debounce_settle();
     dut->keys = 1ull << 48;
-    wait_ns(500);
+    wait_debounce_settle();
     check_freq(48, 440.0, "A4 (440 Hz)");
     dut->keys = 0;
+    wait_debounce_settle();
 
-    // 3) Single key C4 (key 36, 261.6 Hz)
-    dut->keys = 1ull << 36;
-    wait_ns(500);
-    check_freq(36, 261.626, "C4 (261.6 Hz)");
+    // 3) Single key C4 (key 39, 261.6 Hz)
+    dut->keys = 1ull << 39;
+    wait_debounce_settle();
+    check_freq(39, 261.626, "C4 (261.6 Hz)");
     dut->keys = 0;
+    wait_debounce_settle();
 
     // 4) Chord C4+E4+G4
     printf("\n--- Chord test ---\n");
-    dut->keys = (1ull << 36) | (1ull << 40) | (1ull << 43);
-    wait_ns(1000);
-    if (dut->audio_out != 0) {
+    dut->keys = (1ull << 39) | (1ull << 43) | (1ull << 46);
+    wait_debounce_settle();
+    if (wait_audio_level(1, "chord press", 5'000'000)) {
         printf("  PASS: Chord output non-zero (audio_out=%d)\n", dut->audio_out);
         passed++;
     } else {
-        printf("  FAIL: Chord output should not be zero\n");
         failed++;
     }
     dut->keys = 0;
+    wait_debounce_settle();
 
     // 5) All keys test
     printf("\n--- All keys test ---\n");
-    dut->keys = ~0ull;   // Lower 64 bits
-    for (int i = 64; i < 88; i++) dut->keys |= (1ull << i);  // Upper 24 bits
-    wait_ns(500);
-    if (dut->audio_out != 0) {
+    dut->keys = ~0ull;
+    for (int i = 64; i < 88; i++) dut->keys |= (1ull << i);
+    wait_debounce_settle();
+    if (wait_audio_level(1, "all-keys press", 5'000'000)) {
         printf("  PASS: All-keys output non-zero\n");
         passed++;
     } else {
-        printf("  FAIL: All-keys output should not be zero\n");
         failed++;
     }
     dut->keys = 0;
-    wait_ns(200);
+    wait_debounce_settle();
     if (dut->audio_out == 0) {
         printf("  PASS: Output zero after releasing all keys\n");
         passed++;
@@ -145,9 +153,6 @@ int main(int argc, char** argv) {
         failed++;
     }
 
-    // ========================================================================
-    // Results
-    // ========================================================================
     printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);
 
     trace->close();

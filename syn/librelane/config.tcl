@@ -8,8 +8,7 @@ set ::env(DESIGN_NAME) "electronic_keyboard"
 # RTL file paths (relative to OpenLane working directory)
 set ::env(VERILOG_FILES) "\
     $::env(DESIGN_DIR)/../../rtl/freq_gen.sv              \
-    $::env(DESIGN_DIR)/../../rtl/debounce.sv               \
-    $::env(DESIGN_DIR)/../../rtl/poly_synth.sv              \
+    $::env(DESIGN_DIR)/../../rtl/debounce.sv              \
     $::env(DESIGN_DIR)/../../rtl/electronic_keyboard.sv"
 
 # Clock port and period

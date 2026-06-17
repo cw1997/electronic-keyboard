@@ -46,8 +46,7 @@ This project implements the digital logic core of an 88-key fully polyphonic ele
 ```
 electronic_keyboard
 ├── debounce × 88        — debounce each key input
-└── poly_synth
-    └── freq_gen × 88    — generate square wave per key
+└── freq_gen × 88        — generate square wave per key (OR-mixed)
 ```
 
 ### Module Ports
@@ -167,7 +166,7 @@ At half_period: square_out = ~square_out; counter = 0
 Audio output:  audio_out = square_wires[0] | ... | square_wires[87]
 ```
 
-**Note frequency table**: `poly_synth` instantiates 88 `freq_gen` blocks via a `generate` loop. Each instance receives a `localparam` `NOTE_FREQ_HZ` (integer Hz, rounded from the 12-TET formula). `freq_gen` then derives `HALF_PERIOD` at elaboration time. No runtime lookup, floating-point, or external generation scripts are needed for synthesis.
+**Note frequency table**: `electronic_keyboard` instantiates 88 `freq_gen` blocks via a `generate` loop. Each instance receives a `localparam` `NOTE_FREQ_HZ` (integer Hz, rounded from the 12-TET formula). `freq_gen` then derives `HALF_PERIOD` at elaboration time. No runtime lookup, floating-point, or external generation scripts are needed for synthesis.
 
 ## Simulation
 
@@ -208,7 +207,7 @@ CLK_FREQ = 50000000 Hz
 
 PASS: Output should be zero after reset
 PASS: A4 (440 Hz) (key 48): 440.003 Hz (expected 440.000 Hz, error +0.00%)
-PASS: C4 (261.6 Hz) (key 36): 261.626 Hz (expected 261.626 Hz, error +0.00%)
+PASS: C4 (261.6 Hz) (key 39): 262.000 Hz (expected 261.626 Hz, error +0.14%)
 PASS: C8 (4186 Hz) (key 87): 4186.004 Hz (expected 4186.009 Hz, error -0.00%)
 PASS: A0 (27.5 Hz) (key 0): 27.497 Hz (expected 27.500 Hz, error -0.01%)
 PASS: Chord output waveform changes correctly
@@ -219,7 +218,7 @@ PASS: All keys pressed audio_out changes
 
 ### CI
 
-GitHub Actions automatically verifies every push and pull request using Verilator and iverilog on Ubuntu (see `.github/workflows/simulation.yml`).
+GitHub Actions automatically verifies every push and pull request using Verilator and iverilog on Ubuntu (see `.github/workflows/verify-and-synth.yml`).
 
 ## ASIC Flow (LibreLane / sky130)
 
@@ -290,10 +289,9 @@ Representative results from a successful full flow run:
 
 ```
 ├── rtl/
-│   ├── electronic_keyboard.sv       # Top-level module
+│   ├── electronic_keyboard.sv       # Top-level module (debounce + 88×freq_gen)
 │   ├── debounce.sv                  # Key debounce (counter-based, 10 ms default)
-│   ├── freq_gen.sv                  # Square-wave frequency generator
-│   └── poly_synth.sv                # Polyphonic synthesizer (instantiates 88 freq_gen)
+│   └── freq_gen.sv                  # Square-wave frequency generator
 ├── tb/
 │   └── electronic_keyboard_tb.sv    # Self-checking testbench (SystemVerilog)
 ├── sim/
@@ -305,9 +303,9 @@ Representative results from a successful full flow run:
 │       ├── config.json              # LibreLane minimal configuration
 │       └── config.tcl               # LibreLane extended configuration
 ├── scripts/
-│   └── calc_freq.py                 # Optional: print theoretical 12-TET frequencies
+│   └── calc_freq.py                 # Optional: validate 12-TET vs half-period frequencies
 ├── .github/workflows/
-│   └── simulation.yml               # CI simulation
+│   └── verify-and-synth.yml         # CI simulation and LibreLane synthesis
 ├── .gitignore
 ├── AGENTS.md
 ├── LICENSE                          # Apache 2.0
