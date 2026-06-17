@@ -84,10 +84,8 @@ jobs:
         run: |
           TAG_NAME="build_$(date +%Y%m%d%H%M%S)_${GIT_HASH:0:8}"
           echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
-          mkdir -p build_artifacts/syn build_artifacts/sim
-          cp -r syn/librelane/runs/* build_artifacts/syn/
-          cp -r sim-results/* build_artifacts/sim/
-          cd build_artifacts && zip -r "${OLDPWD}/librelane-build.zip" .
+          (cd sim-results && zip -r "$GITHUB_WORKSPACE/sim-result.zip" .)
+          (cd syn/librelane/runs && zip -r "$GITHUB_WORKSPACE/librelane-build.zip" .)
 
       - name: Upload to release
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
@@ -97,7 +95,12 @@ jobs:
           name: ${{ env.TAG_NAME }}
           body: |
             Automated build from commit ${{ github.sha }}
-          files: librelane-build.zip
+
+            - sim-result.zip: simulation artifacts (iverilog build, VCD waveforms)
+            - librelane-build.zip: LibreLane synthesis run outputs
+          files: |
+            sim-result.zip
+            librelane-build.zip
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
