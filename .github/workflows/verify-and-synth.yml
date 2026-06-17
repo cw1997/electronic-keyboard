@@ -62,12 +62,6 @@ jobs:
         working-directory: syn/librelane
         run: script -q -e -c "bash build.sh" /dev/null
 
-      - name: Download simulation artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: sim-results
-          path: sim-results/
-
       - name: Upload LibreLane run artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -77,8 +71,27 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Package and create release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [sim, librelane]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+    steps:
+      - name: Download simulation artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: sim-results
+          path: sim-results/
+
+      - name: Download LibreLane run artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: librelane-runs
+          path: syn/librelane/runs/
+
+      - name: Package release archives
         env:
           GIT_HASH: ${{ github.sha }}
         run: |
@@ -88,7 +101,6 @@ jobs:
           (cd syn/librelane/runs && zip -r "$GITHUB_WORKSPACE/librelane-build.zip" .)
 
       - name: Upload to release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG_NAME }}
