@@ -1,0 +1,61 @@
+name: Verify and Synthesize
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sim:
+    name: Simulation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install simulation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog verilator
+
+      - name: Run testbench (iverilog)
+        run: make -C sim sim
+
+      - name: Run Verilator lint
+        run: make -C sim lint
+
+  librelane:
+    name: LibreLane Synthesis
+    runs-on: ubuntu-latest
+    needs: sim
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install LibreLane
+        run: python3 -m pip install librelane
+
+      - name: Run LibreLane flow
+        working-directory: syn/librelane
+        run: script -q -e -c "bash build.sh" /dev/null
+
+      - name: Upload LibreLane run artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: librelane-runs
+          path: syn/librelane/runs/
+          retention-days: 14
+          if-no-files-found: warn
