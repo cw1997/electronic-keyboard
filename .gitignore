@@ -41,3 +41,14 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
