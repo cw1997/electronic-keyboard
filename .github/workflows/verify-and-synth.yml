@@ -29,6 +29,17 @@ jobs:
       - name: Run Verilator lint
         run: make -C sim lint
 
+      - name: Upload simulation artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sim-results
+          path: |
+            sim/build/
+            sim/*.vcd
+          retention-days: 14
+          if-no-files-found: warn
+
   librelane:
     name: LibreLane Synthesis
     runs-on: ubuntu-latest
@@ -51,6 +62,12 @@ jobs:
         working-directory: syn/librelane
         run: script -q -e -c "bash build.sh" /dev/null
 
+      - name: Download simulation artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: sim-results
+          path: sim-results/
+
       - name: Upload LibreLane run artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -59,3 +76,28 @@ jobs:
           path: syn/librelane/runs/
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Package and create release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        env:
+          GIT_HASH: ${{ github.sha }}
+        run: |
+          TAG_NAME="build_$(date +%Y%m%d%H%M%S)_${GIT_HASH:0:8}"
+          echo "TAG_NAME=$TAG_NAME" >> "$GITHUB_ENV"
+          mkdir -p build_artifacts/syn build_artifacts/sim
+          cp -r syn/librelane/runs/* build_artifacts/syn/
+          cp -r sim-results/* build_artifacts/sim/
+          cd build_artifacts && zip -r "${OLDPWD}/librelane-build.zip" .
+
+      - name: Upload to release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
+          body: |
+            Automated build from commit ${{ github.sha }}
+          files: librelane-build.zip
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
